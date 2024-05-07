@@ -1,0 +1,193 @@
+<html>
+
+<body>
+    <script type="module">
+        // import { App } from "./webgpu-cuda.js";
+        // const app = new App();
+
+        import { WGSLCodeGenerator } from "./webgpu-cuda.js";
+
+        const tests = [
+            ["10 + 10", "10 + 10"],
+            ["uint id = 10;", "var id: u32 = 10;"],
+
+            ["uint id = uint(10);", "var id: u32 = u32(10);"],
+
+            ["uint id = fn(10);", "var id: u32 = fn(10);"],
+            ["uint id = ui(a, 10);", "var id: u32 = ui(a, 10);"],
+
+            ["uint id = blockDim.x;", "var id: u32 = blockDim.x;"],
+            ["uint id = blockDim.x * 10;", "var id: u32 = blockDim.x * 10;"],
+            ["uint id = blockDim.x * blockIdx.x + threadIdx.x;", "var id: u32 = blockDim.x * blockIdx.x + threadIdx.x;"],
+            
+            ["uint id = a[10];", "var id: u32 = a[10];"],
+            ["uint id = a[10 + 10];", "var id: u32 = a[10 + 10];"],
+            ["uint id = a[10 + 10 * 10];", "var id: u32 = a[10 + 10 * 10];"],
+
+            ["void f(float a) {}", "fn f(a: f32) {}"],
+            ["void f(float a, uint b) {}", "fn f(a: f32, b: u32) {}"],
+
+            ["void f(float *a) {}", "fn f(a: f32) {}"],
+            ["void f(uint *a) {}", "fn f(a: u32) {}"],
+            ["void f(int *a) {}", "fn f(a: i32) {}"],
+
+            ["10 * 10", "10 * 10"],
+
+            [
+                `
+                void f(float a, uint b) {
+                    uint id = uint(a);
+                    uint ida = 10;
+                }`,
+                `
+                fn f(a: f32, b: u32) {
+                    var id: u32 = u32(a);
+                    var ida: u32 = 10;
+                }`
+            ],
+
+            [
+                `
+                for (int i = 0; i < 10; i++) {
+                }`,
+                `
+                for (var i = 0; i < 10; i++) {
+                }`
+            ],
+
+            [
+                `
+                for(int i = 0; i <= 10; i++) {
+                }`,
+                `
+                for(var i = 0; i <= 10; i++) {
+                }`
+            ],
+
+            [
+                `
+                while(a > 10) {
+                }`,
+                `
+                while(a > 10) {
+                }`
+            ],
+
+            [
+                `
+                if (a > 10) {
+                }`,
+                `
+                if(a > 10) {
+                }`
+            ],
+
+            ["// Test comment", "// Test comment"],
+            [
+                `
+                    /* Test
+                        comment
+                        multi
+                        line
+                    */`,
+                    `
+                    /* Test
+                        comment
+                        multi
+                        line
+                    */`
+            ]
+        ]
+
+        function dedent(str, extra = 0) {
+            if (str[0] !== "\n") return str;
+            const lines = str.split("\n");
+            const nextLine = lines[1];
+            if (!nextLine) return str;
+            const firstCharIndex = nextLine.search(/[a-zA-Z]/);
+            for (let i = 0; i < lines.length; i++) {
+                let extraToRemove = i === 1 ? 0 : extra;
+                lines[i] = lines[i].slice(firstCharIndex - extraToRemove, lines[i].length);
+            }
+            return lines.slice(1).join("\n");
+        }
+        
+        const filter = (str) => str.replaceAll("\n", "").replaceAll(" ", "").replaceAll("\t", "");
+        
+
+        for (let test of tests) {
+            const code = test[0];
+            const expected = test[1];
+
+            const parser = new WGSLCodeGenerator();
+            const ret = parser.convert(code);
+
+            if (filter(ret) !== filter(expected)) {
+                console.log(`%c[F]: ${dedent(code)}`, 'color: #e74c3c');
+                console.log(`%c\tGot: ${dedent(ret)}`, 'color: #e74c3c');
+                console.log(`%c\tExpected: ${dedent(expected)}`, 'color: #e74c3c');
+            }
+            else {
+                console.log(`%c[P]: ${dedent(code, 5).replaceAll("\n", "")}`, 'color: #2ecc71');
+                // console.log(`%c\tGot: ${ret}`, 'color: #2ecc71');
+                // console.log(`%c\tExpected: ${expected}`, 'color: #2ecc71');
+            }
+            // console.log("\n");
+        }
+
+        const code = `
+        void kernel_1t1c(float *A, float *B, float *C, uint WIDTH) {
+            // To DO: Each thread = 1 output row
+            int colID = threadIdx.x + blockIdx.x * blockDim.x;
+            if(colID < WIDTH) {
+                for(int i = 0; i<WIDTH; i++){
+                    C[colID + i*WIDTH] = A[colID + i*WIDTH] + B[colID + i*WIDTH];
+                }
+            }
+        }`
+
+        // const code = `
+        // void timedReduction(float *input, float *output, clock_t *timer) {
+        //     float forA = 10;
+        //     __shared__ float shared[];
+
+        //     const int tid = threadIdx.x;
+        //     const int bid = blockIdx.x;
+
+        //     if (tid == 0) timer[bid] = clock();
+
+        //     // Copy input.
+        //     shared[tid] = input[tid];
+        //     shared[tid + blockDim.x] = input[tid + blockDim.x];
+
+        //     // Perform reduction to find minimum.
+        //     for (int d = blockDim.x; d > 0; d /= 2) {
+        //         __syncthreads();
+
+        //         if (tid < d) {
+        //             float f0 = shared[tid];
+        //             float f1 = shared[tid + d];
+
+        //             if (f1 < f0) {
+        //                 shared[tid] = f1;
+        //             }
+        //         }
+        //     }
+
+        //     // Write result.
+        //     if (tid == 0) output[bid] = shared[0];
+
+        //     __syncthreads();
+
+        //     if (tid == 0) timer[bid + gridDim.x] = clock();
+        // }`
+
+        const parser = new WGSLCodeGenerator();
+        const ret = parser.convert(code);
+        // console.log("cuda:\n", code);
+        // console.log("wgsl:\n", ret);
+
+    </script>
+</body>
+
+</html>
