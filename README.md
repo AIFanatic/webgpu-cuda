@@ -1,5 +1,5 @@
 # WEBGPU-Cuda
-A quick and dirt attempt into creating a CUDA to WEBGPU wrapper (not working yet).
+A quick and dirt attempt into making WEBGPU more CUDA like (not working yet).
 
 ### Folder: src
 The directory src has a hacky way to make running webgpu compute more friendly:
