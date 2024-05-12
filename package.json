@@ -4,10 +4,11 @@
   "main": "index.js",
   "license": "MIT",
   "scripts": {
-    "dev": "esbuild src-ast/index.ts --bundle --outfile=dist/webgpu-cuda.js --target=es2020 --format=esm --watch"
+    "dev": "esbuild src/index.ts --bundle --outfile=dist/webgpu-cuda.js --target=es2020 --format=esm --watch"
   },
   "devDependencies": {
     "@webgpu/types": "^0.1.40",
     "esbuild": "^0.20.2"
-  }
+  },
+  "dependencies": {}
 }
