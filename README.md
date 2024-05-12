@@ -1,5 +1,9 @@
 # WEBGPU-Cuda
-A quick and dirt attempt into making WEBGPU more CUDA like (not working yet).
+A quick and dirty attempt into making WEBGPU more CUDA like (not working yet).<br />
+
+[Tests](https://aifanatic.github.io/webgpu-cuda/dist/index.html)
+
+TODO: Update readme
 
 ### Folder: src
 The directory src has a hacky way to make running webgpu compute more friendly:
